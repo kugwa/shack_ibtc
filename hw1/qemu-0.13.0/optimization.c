@@ -84,6 +84,9 @@ static inline void shack_init(CPUState *env)
  */
 void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host_eip)
 {
+    shadow_pair *entry = hash_retrieve(env, guest_eip);
+    if (entry == NULL) hash_insert(env, guest_eip, (uint8_t*)host_eip);
+    else entry->shadow_slot = (uint8_t*)host_eip;
 }
 
 /*
