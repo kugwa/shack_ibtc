@@ -120,6 +120,10 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
  */
 void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
 {
+    TCGv_ptr temp_shack_top, temp_shack;
+    tcg_gen_ld_ptr(temp_shack_top, cpu_env, offsetof(CPUState, shack_top));
+    tcg_gen_ld_ptr(temp_shack, cpu_env, offsetof(CPUState, shack));
+
 }
 
 /*

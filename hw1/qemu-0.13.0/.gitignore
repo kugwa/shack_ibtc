@@ -54,3 +54,6 @@ pc-bios/optionrom/multiboot.bin
 pc-bios/optionrom/multiboot.raw
 .stgit-*
 cscope.*
+*.swo
+*.swp
+build/
