@@ -72,10 +72,6 @@ static inline void shack_init(CPUState *env)
         exit(1);
     }
     env->shack_top = env->shack;
-
-    // just to remove the warning "defined but not used" temporarily
-    hash_insert(env, (target_ulong)NULL, (uint8_t*)0xdeadbeef);
-    hash_retrieve(env, (target_ulong)NULL);
 }
 
 /*
