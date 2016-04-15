@@ -37,7 +37,7 @@ static void hash_init(CPUState *env)
     env->shadow_hash_list = list;
 }
 
-static void hash_insert(CPUState *env, target_ulong guest_eip, uint8_t *shadow_slot)
+static shadow_pair *hash_insert(CPUState *env, target_ulong guest_eip, uint8_t *shadow_slot)
 {
     shadow_pair *entry = malloc(sizeof(shadow_pair));
     if (entry == NULL) {
@@ -50,6 +50,7 @@ static void hash_insert(CPUState *env, target_ulong guest_eip, uint8_t *shadow_s
     int key = hash(guest_eip);
     entry->l.next = (list_t*)(((shadow_pair**)env->shadow_hash_list)[key]);
     ((shadow_pair**)env->shadow_hash_list)[key] = entry;
+    return entry;
 }
 
 static shadow_pair *hash_retrieve(CPUState *env, target_ulong guest_eip)
@@ -100,7 +101,7 @@ void helper_shack_flush(CPUState *env)
 void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
 {
     shadow_pair *entry = hash_retrieve(env, next_eip);
-    if (entry == NULL) hash_insert(env, next_eip, (uint8_t*)NULL);
+    if (entry == NULL) entry = hash_insert(env, next_eip, (uint8_t*)NULL);
 
     TCGv_ptr shack_top = tcg_temp_new_ptr();
     tcg_gen_ld_ptr(shack_top, cpu_env, offsetof(CPUState, shack_top));
