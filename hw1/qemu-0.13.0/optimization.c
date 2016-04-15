@@ -83,8 +83,6 @@ void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host
     shadow_pair *entry = hash_retrieve(env, guest_eip);
     if (entry == NULL) hash_insert(env, guest_eip, (uint8_t*)host_eip);
     else entry->shadow_slot = (uint8_t*)host_eip;
-
-    // printf("shack_set_shadow():    guest = 0x%x, host = %p\n", guest_eip, host_eip);
 }
 
 /*
@@ -110,8 +108,6 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
     tcg_gen_addi_ptr(shack_top, shack_top, sizeof(shadow_pair*));
     tcg_gen_st_ptr(shack_top, cpu_env, offsetof(CPUState, shack_top));
     tcg_temp_free_ptr(shack_top);
-
-    // printf("push_shack():          guest = 0x%x\n", next_eip);
 }
 
 /*
@@ -120,38 +116,34 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
  */
 void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
 {
+    TCGv_ptr temp_shack_top                 = tcg_temp_local_new_ptr();
+    TCGv_ptr temp_shack                     = tcg_temp_new_ptr();
+    TCGv_ptr temp_pair                      = tcg_temp_local_new_ptr();
+    TCGv_ptr temp_pair_arrow_guest_eip      = tcg_temp_new_ptr();
+    TCGv_ptr temp_pair_arrow_shadow_slot    = tcg_temp_local_new_ptr();
     int end = gen_new_label();
 
-    TCGv_ptr temp_shack_top = tcg_temp_new_ptr();
-    TCGv_ptr temp_shack = tcg_temp_new_ptr();
-    TCGv_ptr temp_pair = tcg_temp_local_new();
-    TCGv_ptr temp_pair_arrow_guest_eip = tcg_temp_local_new();
-    TCGv_ptr temp_pair_arrow_shadow_slot = tcg_temp_local_new();
-
+    // if (shack_top == shack) goto end;
     tcg_gen_ld_ptr(temp_shack_top, cpu_env, offsetof(CPUState, shack_top));
     tcg_gen_ld_ptr(temp_shack, cpu_env, offsetof(CPUState, shack));
     tcg_gen_brcond_tl(TCG_COND_EQ, temp_shack_top, temp_shack, end);
     
-    // reload
-    tcg_gen_ld_ptr(temp_shack_top, cpu_env, offsetof(CPUState, shack_top));
-    tcg_gen_ld_ptr(temp_shack, cpu_env, offsetof(CPUState, shack));
-
+    // if ((*shack_top)->guest_eip != next_eip) goto end;
     tcg_gen_addi_ptr(temp_shack_top, temp_shack_top, -sizeof(shadow_pair*));
     tcg_gen_st_ptr(temp_shack_top, cpu_env, offsetof(CPUState, shack_top));
     tcg_gen_ld_ptr(temp_pair, temp_shack_top, 0);
-
     tcg_gen_ld_ptr(temp_pair_arrow_guest_eip, temp_pair, offsetof(shadow_pair, guest_eip));
-
     tcg_gen_brcond_tl(TCG_COND_NE, temp_pair_arrow_guest_eip, next_eip, end);
 
+    // if ((*shack_top)->shadow_slot == NULL) goto end;
     tcg_gen_ld_ptr(temp_pair_arrow_shadow_slot, temp_pair, offsetof(shadow_pair, shadow_slot));
     tcg_gen_brcondi_tl(TCG_COND_EQ, temp_pair_arrow_shadow_slot, (int32_t)NULL, end);
 
+    // goto shadow_slot;
     *gen_opc_ptr++ = INDEX_op_jmp;
     *gen_opparam_ptr++ = temp_pair_arrow_shadow_slot;
 
     gen_set_label(end);
-
     tcg_temp_free_ptr(temp_shack_top);
     tcg_temp_free_ptr(temp_shack);
     tcg_temp_free_ptr(temp_pair);
