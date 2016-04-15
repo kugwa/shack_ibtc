@@ -99,6 +99,15 @@ void helper_shack_flush(CPUState *env)
  */
 void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
 {
+    shadow_pair *entry = hash_retrieve(env, next_eip);
+    if (entry == NULL) hash_insert(env, next_eip, (uint8_t*)NULL);
+
+    TCGv_ptr shack_top = tcg_temp_new_ptr();
+    tcg_gen_ld_ptr(shack_top, cpu_env, offsetof(CPUState, shack_top));
+    tcg_gen_st_tl(tcg_const_tl((target_ulong)entry), shack_top, 0);
+    tcg_gen_add_tl(shack_top, shack_top, sizeof(shadow_pair*));
+    tcg_gen_st_ptr(shack_top, cpu_env, offsetof(CPUState, shack_top));
+    tcg_temp_free_ptr(shack_top);
 }
 
 /*
