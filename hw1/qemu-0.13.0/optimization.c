@@ -16,17 +16,66 @@ extern uint8_t *optimization_ret_addr;
 /*
  * Shadow Stack
  */
-list_t *shadow_hash_list;
+// list_t *shadow_hash_list;
+
+static int hash(target_ulong guest_eip)
+{
+    return guest_eip % HASH_TABLE_SIZE;
+}
+
+static void hash_init(CPUState *env)
+{
+    shadow_pair **list = malloc(HASH_TABLE_SIZE * sizeof(shadow_pair*));
+    if (list == NULL) {
+        fprintf(stderr, "hash_init() GG\n");
+        exit(1);
+    }
+
+    int i;
+    for (i = 0; i < HASH_TABLE_SIZE; i++) list[i] = NULL;
+    env->shadow_hash_list = list;
+}
+
+static void hash_insert(CPUState *env, target_ulong guest_eip, uint8_t *shadow_slot)
+{
+    shadow_pair *entry = malloc(sizeof(shadow_pair));
+    if (entry == NULL) {
+        fprintf(stderr, "hash_insert() GG\n");
+        exit(1);
+    }
+    entry->guest_eip = guest_eip;
+    entry->shadow_slot = shadow_slot;
+
+    int key = hash(guest_eip);
+    entry->l.next = (list_t*)(((shadow_pair**)env->shadow_hash_list)[key]);
+    ((shadow_pair**)env->shadow_hash_list)[key] = entry;
+}
+
+static shadow_pair *hash_retrieve(CPUState *env, target_ulong guest_eip)
+{
+    int key = hash(guest_eip);
+    shadow_pair *entry;
+    for (entry = ((shadow_pair**)env->shadow_hash_list)[key]; entry != NULL; entry = (shadow_pair*)(entry->l.next)) {
+        if (entry->guest_eip == guest_eip) return entry;
+    }
+    return NULL;
+}
 
 static inline void shack_init(CPUState *env)
 {
+    hash_init(env);
+
+    // just to remove the warning "defined but not used" temporarily
+    hash_insert(env, (target_ulong)NULL, (uint8_t*)0xdeadbeef);
+    hash_retrieve(env, (target_ulong)NULL);
+
 }
 
 /*
  * shack_set_shadow()
  *  Insert a guest eip to host eip pair if it is not yet created.
  */
- void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host_eip)
+void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host_eip)
 {
 }
 
