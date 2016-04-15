@@ -3,6 +3,7 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include "exec-all.h"
 #include "tcg-op.h"
@@ -64,11 +65,16 @@ static shadow_pair *hash_retrieve(CPUState *env, target_ulong guest_eip)
 static inline void shack_init(CPUState *env)
 {
     hash_init(env);
+    env->shack = malloc(SHACK_SIZE * sizeof(shadow_pair*));
+    if (env->shack == NULL) {
+        fprintf(stderr, "shack_init() GG\n");
+        exit(1);
+    }
+    env->shack_top = env->shack;
 
     // just to remove the warning "defined but not used" temporarily
     hash_insert(env, (target_ulong)NULL, (uint8_t*)0xdeadbeef);
     hash_retrieve(env, (target_ulong)NULL);
-
 }
 
 /*
