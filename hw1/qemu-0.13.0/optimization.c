@@ -155,6 +155,8 @@ void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
  * Indirect Branch Target Cache
  */
 __thread int update_ibtc;
+static ibtc_table* ibtc_table_v;
+static target_ulong being_lookup_eip;
 
 /*
  * helper_lookup_ibtc()
@@ -163,7 +165,14 @@ __thread int update_ibtc;
  */
 void *helper_lookup_ibtc(target_ulong guest_eip)
 {
-    return optimization_ret_addr;
+    target_ulong hash = (guest_eip & IBTC_CACHE_MASK);
+    if (ibtc_table_v->htable[hash].guest_eip == guest_eip) {
+        return ibtc_table_v->htable[hash].tb->tc_ptr;
+    } else {
+        update_ibtc = 1;
+        being_lookup_eip = guest_eip;
+        return optimization_ret_addr;
+    }
 }
 
 /*
@@ -172,6 +181,10 @@ void *helper_lookup_ibtc(target_ulong guest_eip)
  */
 void update_ibtc_entry(TranslationBlock *tb)
 {
+    target_ulong hash = (being_lookup_eip & IBTC_CACHE_MASK);
+    ibtc_table_v->htable[hash].guest_eip = being_lookup_eip;
+    ibtc_table_v->htable[hash].tb = tb;
+    update_ibtc = 0;
 }
 
 /*
@@ -180,6 +193,8 @@ void update_ibtc_entry(TranslationBlock *tb)
  */
 static inline void ibtc_init(CPUState *env)
 {
+    ibtc_table_v = (ibtc_table*)malloc(sizeof(ibtc_table));
+    memset(ibtc_table_v, 0, sizeof(ibtc_table));
 }
 
 /*
