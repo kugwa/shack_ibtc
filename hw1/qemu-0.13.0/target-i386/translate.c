@@ -7837,7 +7837,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         printf("ERROR addseg\n");
 #endif
 
-    cpu_T[0] = tcg_temp_local_new();
+    cpu_T[0] = tcg_temp_new();
     cpu_T[1] = tcg_temp_new();
     cpu_A0 = tcg_temp_new();
     cpu_T3 = tcg_temp_new();
